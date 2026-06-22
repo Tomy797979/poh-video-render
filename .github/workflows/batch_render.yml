@@ -14,7 +14,7 @@ on:
       products:
         description: "Danh sách sản phẩm — mỗi dòng 1 link (tuỳ chọn: link | tên-file)"
         required: true
-        type: string
+        
       ai_provider:
         description: "AI provider để viết narration"
         required: false
