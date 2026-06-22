@@ -1,5 +1,10 @@
 name: Batch Render — Multiple Products
 
+# Điền tối đa 5 link Amazon vào các ô bên dưới → tất cả render song song.
+# Kết quả: toàn bộ video tự upload vào Dropbox cùng lúc.
+# Định dạng mỗi ô: https://amazon.com/dp/B0XXXXXXX | tên-file
+# Phần "| tên-file" không bắt buộc — nếu bỏ qua thì tự lấy ASIN làm tên.
+
 on:
   workflow_dispatch:
     inputs:
@@ -103,10 +108,10 @@ jobs:
           DEEPSEEK_API_KEY:  ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
           NARR_DIR="narrations/${PRODUCT_NAME}"
-          COUNT=$(ls "$NARR_DIR"/narration-*.txt 2>/dev/null | wc -l)
-          if [ -d "$NARR_DIR" ] && [ "$COUNT" -eq 26 ]; then
+          if [ -d "$NARR_DIR" ] && [ $(ls "$NARR_DIR"/narration-*.txt 2>/dev/null | wc -l) -eq 26 ]; then
             echo "Found pre-written narration for '$PRODUCT_NAME' — dùng luôn, không gọi AI."
             cp "$NARR_DIR"/narration-*.txt assets/
+            echo "=== Narration loaded ==="
             for f in assets/narration-*.txt; do echo "$(basename $f): $(cat $f)"; done
           else
             echo "Không có narration sẵn cho '$PRODUCT_NAME' — gọi AI để viết..."
@@ -129,12 +134,12 @@ jobs:
           ffprobe -v quiet -show_entries format=duration -of default=noprint_wrappers=1 narration-full.wav
 
       - name: Sync timeline to real audio durations
-        run: python3 scripts/build_timing.py
+        run: PRODUCT_NAME="${PRODUCT_NAME}" python3 scripts/build_timing.py
 
       - name: Fetch product images (Dropbox first, then fallback)
         env:
-          DROPBOX_APP_KEY:       ${{ secrets.DROPBOX_APP_KEY }}
-          DROPBOX_APP_SECRET:    ${{ secrets.DROPBOX_APP_SECRET }}
+          DROPBOX_APP_KEY:      ${{ secrets.DROPBOX_APP_KEY }}
+          DROPBOX_APP_SECRET:   ${{ secrets.DROPBOX_APP_SECRET }}
           DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
         run: |
           UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
@@ -173,19 +178,14 @@ jobs:
           dbx_dl "${PATH_ARRAY[0]:-}" assets/cover.jpg && echo "Cover: Dropbox OK" || {
             IMG=$(curl -sL -A "$UA" -H "Accept-Language: en-US,en;q=0.9" "$PRODUCT_URL" | grep -oP '(?<=property="og:image" content=")[^"]+' | head -1)
             [ -n "$IMG" ] && curl -sL -A "$UA" "$IMG" -o assets/cover.jpg || true
-            [ -s assets/cover.jpg ] && echo "Cover: scrape OK" || {
-              ffmpeg -f lavfi -i color=c=0x4A1F42:s=900x900 -frames:v 1 -y assets/cover.jpg
-              echo "::warning::Cover fallback for $PRODUCT_NAME"
-            }
+            [ -s assets/cover.jpg ] && echo "Cover: scrape OK" || { ffmpeg -f lavfi -i color=c=0x4A1F42:s=900x900 -frames:v 1 -y assets/cover.jpg; echo "::warning::Cover fallback for $PRODUCT_NAME"; }
           }
 
           COLORS=("0xC8A656" "0x6B5F54" "0x371531")
           for i in 0 1 2; do
             n=$((i+1))
-            dbx_dl "${PATH_ARRAY[$((i+1))]:-}" "assets/sample${n}.jpg" && echo "Sample $n: OK" || {
-              ffmpeg -f lavfi -i color=c=${COLORS[$i]}:s=900x900 -frames:v 1 -y "assets/sample${n}.jpg"
-              echo "Sample $n: fallback"
-            }
+            dbx_dl "${PATH_ARRAY[$((i+1))]:-}" "assets/sample${n}.jpg" && echo "Sample $n: OK" || \
+              { ffmpeg -f lavfi -i color=c=${COLORS[$i]}:s=900x900 -frames:v 1 -y "assets/sample${n}.jpg"; echo "Sample $n: fallback"; }
           done
 
       - name: Lint composition
@@ -196,8 +196,8 @@ jobs:
 
       - name: Upload to Dropbox
         env:
-          DROPBOX_APP_KEY:       ${{ secrets.DROPBOX_APP_KEY }}
-          DROPBOX_APP_SECRET:    ${{ secrets.DROPBOX_APP_SECRET }}
+          DROPBOX_APP_KEY:      ${{ secrets.DROPBOX_APP_KEY }}
+          DROPBOX_APP_SECRET:   ${{ secrets.DROPBOX_APP_SECRET }}
           DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
         run: |
           [ -z "$DROPBOX_APP_KEY" ] && echo "::warning::Thiếu Dropbox Secrets" && exit 0
