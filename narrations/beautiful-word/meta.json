@@ -1,0 +1,12 @@
+{
+  "product_name": "Beautiful Word",
+  "product_sub": "NIV Coloring Bible \u00b7 Zondervan",
+  "chips": ["1,472 Pages", "Full NIV Text", "Hardcover"],
+  "liked": [
+    {"title": "Coloring inside the Bible", "sub": "Woven into the text, not separate"},
+    {"title": "Thick, quality paper",      "sub": "Holds up to colored pencils, no bleed"},
+    {"title": "Wide ruled margins",        "sub": "Journal and color at the same time"}
+  ],
+  "caveat_body": "This is a full Bible \u2014 heavy and priced accordingly. Detailed line art suits adults and older teens, not young children looking for simple designs.",
+  "caveat_sub": "Best for: adults \u00b7 older teens \u00b7 daily quiet time"
+}
